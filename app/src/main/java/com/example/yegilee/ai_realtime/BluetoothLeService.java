@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.yegilee.ai_collect;
+package com.example.yegilee.ai_realtime;
 
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -425,8 +425,8 @@ public class BluetoothLeService extends Service {
 
         //=============================================
         //추가 소스
-        final Intent intent = new Intent(this, MainActivity.class);
-        intent.putExtra("address", mBluetoothDeviceAddress);
+        //final Intent intent = new Intent(this, MainActivity.class);
+        //intent.putExtra("address", mBluetoothDeviceAddress);
         //=============================================
 
         mConnectionState = STATE_CONNECTING;

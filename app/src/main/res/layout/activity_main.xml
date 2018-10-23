@@ -44,7 +44,7 @@
             </LinearLayout>
 
 </LinearLayout>
-
+<!--
     <LinearLayout
         android:layout_gravity="center"
         android:layout_width="wrap_content"
@@ -70,12 +70,17 @@
             android:enabled="false"
             android:text="end" />
     </LinearLayout>
-
+-->
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="#87000000"/>
 
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/scrollView">
+
 
         <TextView
             android:id="@+id/textSerialReceived"

@@ -1,48 +1,37 @@
-package com.example.yegilee.ai_collect;
+package com.example.yegilee.ai_realtime;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 public class MainActivity  extends BlunoLibrary {
 	private Button buttonScan;
-	//private TextView textAdress;
 	private TextView textState;
-	private EditText editLableNum;
-	private Button buttonStart;
-	private Button buttonEnd;
 	private TextView textSerialReceived;
 
-	int i;
-	String labelValue;
-	byte[] dataTmp;
 	boolean flagSave=false;
 
-	final static String foldername = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Documents/";
-	final static String filename = "logfile.txt";
-	final static String filename2 = "tagfile.txt";
-	int globalIdx=0;
-	int globalIdx2=0;
+	private static final int N_SAMPLES = 200;
+	private static List<Float> ax;
+	private static List<Float> ay;
+	private static List<Float> az;
+	private static List<Float> gx;
+	private static List<Float> gy;
+	private static List<Float> gz;
 
+	private float[] results;
+	private TensorFlowClassifier classifier;
 
-	FileOutputStream fos;
-	FileOutputStream fos2;
-	BufferedWriter fw;
-	BufferedWriter fw2;
-
+	private String[] labels = {"1", "2", "3", "4", "5", "6","7","8", "9", "10", "11", "12", "13","14", "15","16"};
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -52,19 +41,29 @@ public class MainActivity  extends BlunoLibrary {
 
 		serialBegin(115200);                                       //set the Uart Baudrate on BLE chip to 115200
 
-
-
 		buttonScan=(Button)findViewById(R.id.buttonScan);
 		//textAdress=(TextView)findViewById(R.id.textAddress);
 		textState=(TextView)findViewById(R.id.textState);
-		editLableNum=(EditText)findViewById(R.id.editLableNum);
-		buttonStart=(Button)findViewById(R.id.buttonStart);
-		buttonEnd=(Button)findViewById(R.id.buttonEnd);
+		//editLableNum=(EditText)findViewById(R.id.editLableNum);
+		//buttonStart=(Button)findViewById(R.id.buttonStart);
+		//buttonEnd=(Button)findViewById(R.id.buttonEnd);
 		textSerialReceived=(TextView)findViewById(R.id.textSerialReceived);
 
 		buttonScan.setOnClickListener(buttonScanListener);
-		buttonStart.setOnClickListener(buttonStartListener);
-		buttonEnd.setOnClickListener(buttonEndListener);
+		//buttonStart.setOnClickListener(buttonStartListener);
+		//buttonEnd.setOnClickListener(buttonEndListener);
+
+		ax = new ArrayList<>();
+		ay = new ArrayList<>();
+		az = new ArrayList<>();
+		gx = new ArrayList<>();
+		gy = new ArrayList<>();
+		gz = new ArrayList<>();
+
+		classifier = new TensorFlowClassifier(getApplicationContext());
+
+
+
 
 	}
 
@@ -129,19 +128,19 @@ public class MainActivity  extends BlunoLibrary {
 		}
 	}
 
-	Queue<String> queueStr=new LinkedList<String>();
 	Queue<String> queueSave=new LinkedList<String>();
 	StringBuilder  bufferStr=new StringBuilder ();
 	int index1=0;
 	int index2=0;
 	String drop;
 	StringBuilder tmp;
-	String tmp2[];
+	String tmp_str;
+	String save[];
+
 	@Override
 	public void onSerialReceived(String theString) {                     //Once connection data received, this function will be called
 		// TODO Auto-generated method stub
 		//textSerialReceived.append(theString);                     //append the text into the EditText
-
 		bufferStr.append(theString);
 
 		//Log.e("datalog", String.valueOf(bufferStr));
@@ -153,33 +152,84 @@ public class MainActivity  extends BlunoLibrary {
 
 			if(bufferStr.lastIndexOf("\n")<45) {
 
-				if(flagSave==true) {
-					//Log.e("index length", String.valueOf(index1) + " " + String.valueOf(index2));
+				//Log.e("index length", String.valueOf(index1) + " " + String.valueOf(index2));
 
-					queueSave.offer(bufferStr.substring(index1, index2));
+				/*
+					String save= bufferStr.substring(index1, index2);
 					tmp  = bufferStr.delete(0, index2);
-
-				}else {
-
-					queueStr.offer(bufferStr.substring(index1, index2));
-					tmp  = bufferStr.delete(0, index2);
-
+					textSerialReceived.append(save + "\n");
+				*/
+				save=bufferStr.substring(index1, index2).split(" ");
+				//addAllData(save);
+				if(save.length>=6) {
+					ax.add(Float.valueOf(save[0]));
+					ay.add(Float.valueOf(save[1]));
+					az.add(Float.valueOf(save[2]));
+					ax.add(Float.valueOf(save[3]));
+					ay.add(Float.valueOf(save[4]));
+					az.add(Float.valueOf(save[5]));
+					activityPrediction();
 				}
-
 			}else{
 				drop=bufferStr.substring(index1, index2);
 				tmp  = bufferStr.delete(0, index2);
 			}
-			if(queueStr.size()%10==0 && queueSave.size()%10==0) {
-				textSerialReceived.append("queueStr length" + String.valueOf(queueStr.size()) + "\n");
-				textSerialReceived.append("queueSave length" + String.valueOf(queueSave.size()) + "\n");
-			}
+
+
 			index1 = 1;
 		}
 		//The Serial data from the BLUNO may be sub-packaged, so using a buffer to hold the String is a good choice.
 		((ScrollView)textSerialReceived.getParent()).fullScroll(View.FOCUS_DOWN);
 	}
-	//===================================================================
+
+	private void addAllData(String[] save){
+
+	}
+
+
+	private void activityPrediction() {
+		if (ax.size() == N_SAMPLES && ay.size() == N_SAMPLES && az.size() == N_SAMPLES) {
+
+			Log.e("method", "method");
+			textSerialReceived.append("method \n");
+
+			List<Float> data = new ArrayList<>();
+			data.addAll(ax);
+			data.addAll(ay);
+			data.addAll(az);
+
+			//data.addAll(gx);
+			//data.addAll(gy);
+			//data.addAll(gz);
+
+			results = classifier.predictProbabilities(toFloatArray(data));
+			textSerialReceived.append("results" + results + "\n");
+			for(int i=0;i<results.length;i++)
+			{
+				textSerialReceived.append(results[i]+" ");
+			}
+			textSerialReceived.append("\n");
+
+			ax.clear();
+			ay.clear();
+			az.clear();
+			//gx.clear();
+			//gy.clear();
+			//gz.clear();
+		}
+	}
+
+	private float[] toFloatArray(List<Float> list) {
+		int i = 0;
+		float[] array = new float[list.size()];
+
+		for (Float f : list) {
+			array[i++] = (f != null ? f : Float.NaN);
+		}
+		return array;
+	}
+
+		//===================================================================
 
 	View.OnClickListener buttonScanListener=new View.OnClickListener() {
 		@Override
@@ -188,7 +238,7 @@ public class MainActivity  extends BlunoLibrary {
 
 		}
 	};
-
+	/*
 	View.OnClickListener buttonStartListener=new View.OnClickListener() {
 		@Override
 		public void onClick(View v) {
@@ -220,7 +270,8 @@ public class MainActivity  extends BlunoLibrary {
 			saveFile();
 		}
 	};
-
+*/
+	/*
 	String buf;
 	String[] bufSize;
 	public void saveFile() {
@@ -278,5 +329,5 @@ public class MainActivity  extends BlunoLibrary {
 			e.printStackTrace() ;
 		}
 	}
-
+*/
 }

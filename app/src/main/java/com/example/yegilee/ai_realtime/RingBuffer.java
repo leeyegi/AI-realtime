@@ -1,4 +1,4 @@
-package com.example.yegilee.ai_collect;
+package com.example.yegilee.ai_realtime;
 
 @SuppressWarnings("unchecked")
 public class RingBuffer<T> {
