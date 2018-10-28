@@ -20,7 +20,7 @@ public class MainActivity  extends BlunoLibrary {
 
 	boolean flagSave=false;
 
-	private static final int N_SAMPLES = 200;
+	private static final int N_SAMPLES = 50;
 	private static List<Float> ax;
 	private static List<Float> ay;
 	private static List<Float> az;
@@ -165,9 +165,9 @@ public class MainActivity  extends BlunoLibrary {
 					ax.add(Float.valueOf(save[0]));
 					ay.add(Float.valueOf(save[1]));
 					az.add(Float.valueOf(save[2]));
-					ax.add(Float.valueOf(save[3]));
-					ay.add(Float.valueOf(save[4]));
-					az.add(Float.valueOf(save[5]));
+					gx.add(Float.valueOf(save[3]));
+					gy.add(Float.valueOf(save[4]));
+					gz.add(Float.valueOf(save[5]));
 					activityPrediction();
 				}
 			}else{
@@ -198,9 +198,9 @@ public class MainActivity  extends BlunoLibrary {
 			data.addAll(ay);
 			data.addAll(az);
 
-			//data.addAll(gx);
-			//data.addAll(gy);
-			//data.addAll(gz);
+			data.addAll(gx);
+			data.addAll(gy);
+			data.addAll(gz);
 
 			results = classifier.predictProbabilities(toFloatArray(data));
 			textSerialReceived.append("results" + results + "\n");
@@ -213,9 +213,9 @@ public class MainActivity  extends BlunoLibrary {
 			ax.clear();
 			ay.clear();
 			az.clear();
-			//gx.clear();
-			//gy.clear();
-			//gz.clear();
+			gx.clear();
+			gy.clear();
+			gz.clear();
 		}
 	}
 
