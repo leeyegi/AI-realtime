@@ -162,6 +162,15 @@ public class MainActivity  extends BlunoLibrary {
 				save=bufferStr.substring(index1, index2).split(" ");
 				//addAllData(save);
 				if(save.length>=6) {
+					for (int i = 0; i < 6; i++) {
+						try {
+							Float.parseFloat(save[i]);
+
+					}catch (NumberFormatException e) {
+						save[i]="0";
+							textSerialReceived.append("data -> 0");
+						}
+					}
 					ax.add(Float.valueOf(save[0]));
 					ay.add(Float.valueOf(save[1]));
 					az.add(Float.valueOf(save[2]));
