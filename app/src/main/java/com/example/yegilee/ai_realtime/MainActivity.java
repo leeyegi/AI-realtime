@@ -2,24 +2,44 @@ package com.example.yegilee.ai_realtime;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.TextView;
-
+import java.util.Collections;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+
+
 
 public class MainActivity  extends BlunoLibrary {
-	private Button buttonScan;
-	private TextView textState;
-	private TextView textSerialReceived;
+    //ui구성에 필요한 인스턴스
+    private TextView textState;
+    private Button buttonScan;
+    private Button buttonStart;
+    private Button buttonEnd;
+    private TextView timeCount;
+    private ImageView toothImage;
+    private TextView toothState;
 
-	boolean flagSave=false;
+    //자바내부 동작 인스턴스
+    long MillisecondTime, StartTime, TimeBuff, UpdateTime = 0L ;
+    Handler handler;
+    int Seconds, Minutes, MilliSeconds;
+	boolean toothflag=false;
 
+    //real-time에 필요한 인스턴스
 	private static final int N_SAMPLES = 50;
 	private static List<Float> ax;
 	private static List<Float> ay;
@@ -29,6 +49,8 @@ public class MainActivity  extends BlunoLibrary {
 	private static List<Float> gz;
 
 	private float[] results;
+	private float[] resultsTmp;
+
 	private TensorFlowClassifier classifier;
 
 	private String[] labels = {"1", "2", "3", "4", "5", "6","7","8", "9", "10", "11", "12", "13","14", "15","16"};
@@ -41,18 +63,24 @@ public class MainActivity  extends BlunoLibrary {
 
 		serialBegin(115200);                                       //set the Uart Baudrate on BLE chip to 115200
 
-		buttonScan=(Button)findViewById(R.id.buttonScan);
-		//textAdress=(TextView)findViewById(R.id.textAddress);
-		textState=(TextView)findViewById(R.id.textState);
-		//editLableNum=(EditText)findViewById(R.id.editLableNum);
-		//buttonStart=(Button)findViewById(R.id.buttonStart);
-		//buttonEnd=(Button)findViewById(R.id.buttonEnd);
-		textSerialReceived=(TextView)findViewById(R.id.textSerialReceived);
+        //타이머기능을 위한 handler
+        handler = new Handler() ;
 
+        //인스턴스와 layout id 연결
+        textState=(TextView)findViewById(R.id.textState);
+        buttonScan=(Button)findViewById(R.id.buttonScan);
+		buttonStart = (Button)findViewById(R.id.buttonStart);
+		buttonEnd=(Button)findViewById(R.id.buttonEnd);
+        timeCount=(TextView)findViewById(R.id.timeCount);
+        toothImage=(ImageView)findViewById(R.id.toothImage);
+        toothState=(TextView) findViewById(R.id.toothState);
+
+        //버튼 리스너
 		buttonScan.setOnClickListener(buttonScanListener);
-		//buttonStart.setOnClickListener(buttonStartListener);
-		//buttonEnd.setOnClickListener(buttonEndListener);
+        buttonStart.setOnClickListener(buttonStartListener);
+        buttonEnd.setOnClickListener(buttonEndListener);
 
+        //센서 데이터 값 배열 생성
 		ax = new ArrayList<>();
 		ay = new ArrayList<>();
 		az = new ArrayList<>();
@@ -60,14 +88,15 @@ public class MainActivity  extends BlunoLibrary {
 		gy = new ArrayList<>();
 		gz = new ArrayList<>();
 
+		//tensorflow 분류기 선언
 		classifier = new TensorFlowClassifier(getApplicationContext());
-
-
-
-
 	}
 
-	protected void onResume(){
+	//====================================
+    //블루투스 연결과 관련된 메소드들
+    //====================================
+
+    protected void onResume(){
 		super.onResume();
 		System.out.println("BlUNOActivity onResume");
 		onResumeProcess();                                          //onResume Process by BlunoLibrary
@@ -95,7 +124,6 @@ public class MainActivity  extends BlunoLibrary {
 		super.onDestroy();
 		onDestroyProcess();                                          //onDestroy Process by BlunoLibrary
 	}
-
 
 
 	@Override
@@ -128,80 +156,85 @@ public class MainActivity  extends BlunoLibrary {
 		}
 	}
 
+    //====================================
+    //블루투스데이터 처리 메소드
+    //====================================
+
+    //받아오는 데이터 처리하기 위한 인스턴스
 	Queue<String> queueSave=new LinkedList<String>();
 	StringBuilder  bufferStr=new StringBuilder ();
 	int index1=0;
 	int index2=0;
 	String drop;
 	StringBuilder tmp;
-	String tmp_str;
 	String save[];
 
 	@Override
 	public void onSerialReceived(String theString) {                     //Once connection data received, this function will be called
 		// TODO Auto-generated method stub
-		//textSerialReceived.append(theString);                     //append the text into the EditText
+		//start time과 endtime을 시간을 측정하고싶은곳에 넣으면 됨
+		//long startTime = System.currentTimeMillis();
+		//long endTime = System.currentTimeMillis();
+		//textSerialReceived.append("timecheck onCreate:" + String.valueOf(endTime - startTime) + "\n");
+
 		bufferStr.append(theString);
 
-		//Log.e("datalog", String.valueOf(bufferStr));
-		//Log.e("datalog length", String.valueOf(bufferStr.length()));
-		if(bufferStr.length()>20 && bufferStr.lastIndexOf("\n")>1) {
-			//Thread threadOne = new Thread1();
-			//threadOne.start();
+		//받은데이터가 20보다 크고 \n(구분자)가 존재하면 data save
+		if(bufferStr.lastIndexOf("\n")>1) {
+			//구분자가 있는 위치 받음
 			index2 = bufferStr.lastIndexOf("\n");
 
-			if(bufferStr.lastIndexOf("\n")<45) {
+			if (bufferStr.lastIndexOf("\n") < 45) {
 
-				//Log.e("index length", String.valueOf(index1) + " " + String.valueOf(index2));
-
-				/*
-					String save= bufferStr.substring(index1, index2);
-					tmp  = bufferStr.delete(0, index2);
-					textSerialReceived.append(save + "\n");
-				*/
-				save=bufferStr.substring(index1, index2).split(" ");
-				//addAllData(save);
-				if(save.length>=6) {
+				//데이터 저장
+				save = bufferStr.substring(index1, index2).split(" ");
+				//이상한 데이터 확인하고 이상한 데이터 0으로 make
+				if (save.length >= 6) {
 					for (int i = 0; i < 6; i++) {
-						try {
+						try { 							//이상한 데이터 모두 0으로 만듬
 							Float.parseFloat(save[i]);
 
-					}catch (NumberFormatException e) {
-						save[i]="0";
-							textSerialReceived.append("data -> 0");
+						} catch (NumberFormatException e) {
+							save[i] = "0";
+							Log.e("strange data","data -> 0\n");
 						}
 					}
-					ax.add(Float.valueOf(save[0]));
-					ay.add(Float.valueOf(save[1]));
-					az.add(Float.valueOf(save[2]));
-					gx.add(Float.valueOf(save[3]));
-					gy.add(Float.valueOf(save[4]));
-					gz.add(Float.valueOf(save[5]));
-					activityPrediction();
+					if(toothflag==true) {
+						//이상한 데이터 처리 후 저장
+						ax.add(Float.valueOf(save[0]));
+						ay.add(Float.valueOf(save[1]));
+						az.add(Float.valueOf(save[2]));
+						gx.add(Float.valueOf(save[3]));
+						gy.add(Float.valueOf(save[4]));
+						gz.add(Float.valueOf(save[5]));
+						activityPrediction();
+					}
 				}
-			}else{
-				drop=bufferStr.substring(index1, index2);
-				tmp  = bufferStr.delete(0, index2);
+			} else {
+				//버리는 데이터
+				drop = bufferStr.substring(index1, index2);
+				tmp = bufferStr.delete(0, index2);
+				Log.e("drop","data" + drop + "\n");
+
 			}
 
-
 			index1 = 1;
+
 		}
+
 		//The Serial data from the BLUNO may be sub-packaged, so using a buffer to hold the String is a good choice.
-		((ScrollView)textSerialReceived.getParent()).fullScroll(View.FOCUS_DOWN);
+		//((ScrollView)textSerialReceived.getParent()).fullScroll(View.FOCUS_DOWN);
 	}
 
-	private void addAllData(String[] save){
-
-	}
-
-
+    //====================================
+    //데이터를 받아 50개씩 모은 후 신경망에서 평가하는 메소드
+    //====================================
 	private void activityPrediction() {
+		//각 사이즈가 50개씩 쌓이면 아래 코드 실행
 		if (ax.size() == N_SAMPLES && ay.size() == N_SAMPLES && az.size() == N_SAMPLES) {
 
-			Log.e("method", "method");
-			textSerialReceived.append("method \n");
 
+			//리스트에 각 값을 저장
 			List<Float> data = new ArrayList<>();
 			data.addAll(ax);
 			data.addAll(ay);
@@ -211,14 +244,51 @@ public class MainActivity  extends BlunoLibrary {
 			data.addAll(gy);
 			data.addAll(gz);
 
+			//prediction한 class의 probability를 배열에 담아줌
 			results = classifier.predictProbabilities(toFloatArray(data));
-			textSerialReceived.append("results" + results + "\n");
-			for(int i=0;i<results.length;i++)
-			{
-				textSerialReceived.append(results[i]+" ");
-			}
-			textSerialReceived.append("\n");
+			resultsTmp = classifier.predictProbabilities(toFloatArray(data));
 
+			Log.e("toothState", String.valueOf(results));
+
+			//prediction한 결과 뿌려줌
+			//textSerialReceived.append("results" + results + "\n");
+			//Log.e("toothState", String.valueOf(results.length));
+
+			//float[] resultTmp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+			//resultTmp=results;
+
+			Arrays.sort(resultsTmp);
+
+			toothState.setText(" ");
+			for(int i=0;i<16;i++)
+			{
+				//toothState.append(String.valueOf(i+1 +" -> "+results[i])+" ");
+				toothState.append(String.format("%2d -> %.10f \n", i+1, results[i]));
+
+				if(resultsTmp[15]==results[i]){
+					int rank=i+1;
+					Log.e("rank", String.valueOf(rank));
+					if(rank==1) toothImage.setImageResource(R.drawable.class1);
+					else if(rank==2) toothImage.setImageResource(R.drawable.class2);
+					else if(rank==3) toothImage.setImageResource(R.drawable.class3);
+					else if(rank==4) toothImage.setImageResource(R.drawable.class4);
+					else if(rank==5) toothImage.setImageResource(R.drawable.class5);
+					else if(rank==6) toothImage.setImageResource(R.drawable.class6);
+					else if(rank==7) toothImage.setImageResource(R.drawable.class7);
+					else if(rank==8) toothImage.setImageResource(R.drawable.class8);
+					else if(rank==9) toothImage.setImageResource(R.drawable.class9);
+					else if(rank==10) toothImage.setImageResource(R.drawable.class10);
+					else if(rank==11) toothImage.setImageResource(R.drawable.class11);
+					else if(rank==12) toothImage.setImageResource(R.drawable.class12);
+					else if(rank==13) toothImage.setImageResource(R.drawable.class13);
+					else if(rank==14) toothImage.setImageResource(R.drawable.class14);
+					else if(rank==15) toothImage.setImageResource(R.drawable.class15);
+					else if(rank==16) toothImage.setImageResource(R.drawable.class16);
+				}
+			}
+
+
+			//각 배열 clear
 			ax.clear();
 			ay.clear();
 			az.clear();
@@ -226,6 +296,37 @@ public class MainActivity  extends BlunoLibrary {
 			gy.clear();
 			gz.clear();
 		}
+	}
+
+	private void showToothImage(float[] results, float[] resultsTmp){
+
+		for(int i=0;i<resultsTmp.length;i++){
+
+			toothState.append(String.valueOf(results[i] +"  ->  "+resultsTmp[i])+" ");
+				/*
+				if(compareResults[i]==resultsTmp[15]){
+
+					int rank=i+1;
+					Log.e("rank", String.valueOf(rank));
+					if(rank==1) toothImage.setImageResource(R.drawable.class1);
+				 	else if(rank==2) toothImage.setImageResource(R.drawable.class2);
+					else if(rank==3) toothImage.setImageResource(R.drawable.class3);
+					else if(rank==4) toothImage.setImageResource(R.drawable.class4);
+					else if(rank==5) toothImage.setImageResource(R.drawable.class5);
+					else if(rank==6) toothImage.setImageResource(R.drawable.class6);
+					else if(rank==7) toothImage.setImageResource(R.drawable.class7);
+					else if(rank==8) toothImage.setImageResource(R.drawable.class8);
+					else if(rank==9) toothImage.setImageResource(R.drawable.class9);
+					else if(rank==10) toothImage.setImageResource(R.drawable.class10);
+					else if(rank==11) toothImage.setImageResource(R.drawable.class11);
+					else if(rank==12) toothImage.setImageResource(R.drawable.class12);
+					else if(rank==13) toothImage.setImageResource(R.drawable.class13);
+					else if(rank==14) toothImage.setImageResource(R.drawable.class14);
+					else if(rank==15) toothImage.setImageResource(R.drawable.class15);
+					else if(rank==16) toothImage.setImageResource(R.drawable.class16);
+				}*/
+		}
+
 	}
 
 	private float[] toFloatArray(List<Float> list) {
@@ -238,7 +339,10 @@ public class MainActivity  extends BlunoLibrary {
 		return array;
 	}
 
-		//===================================================================
+
+    //====================================
+    //버튼 리스너 메소드들
+    //====================================
 
 	View.OnClickListener buttonScanListener=new View.OnClickListener() {
 		@Override
@@ -247,96 +351,56 @@ public class MainActivity  extends BlunoLibrary {
 
 		}
 	};
-	/*
-	View.OnClickListener buttonStartListener=new View.OnClickListener() {
-		@Override
-		public void onClick(View v) {
-			flagSave=true;
-			//Log.e("button status", "start");
-			buttonStart.setEnabled(false);
-			buttonEnd.setEnabled(true);
 
-			labelValue= String.valueOf(editLableNum.getText());
-			textSerialReceived.append(labelValue+"번 수집시작"+"\n");
+    View.OnClickListener buttonStartListener=new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+        	toothflag=true;
+            buttonStart.setEnabled(false);
+            buttonEnd.setEnabled(true);
 
-			queueStr.clear();
-			//bufferStr.delete(0,bufferStr.length());
+            StartTime = SystemClock.uptimeMillis();
+            handler.postDelayed(runnable, 0);
+        }
+    };
 
-		}
-	};
+    View.OnClickListener buttonEndListener=new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+			toothflag=false;
 
-	View.OnClickListener buttonEndListener=new View.OnClickListener() {
-		@Override
-		public void onClick(View v) {
-			flagSave=false;
-			//Log.e("button status", "end");
 			buttonStart.setEnabled(true);
-			buttonEnd.setEnabled(false);
+            buttonEnd.setEnabled(false);
 
-			textSerialReceived.append(labelValue+"번 수집종료"+"\n");
-			editLableNum.setText("");
+            TimeBuff += MillisecondTime;
+            handler.removeCallbacks(runnable);
+        }
+    };
 
-			saveFile();
-		}
-	};
-*/
-	/*
-	String buf;
-	String[] bufSize;
-	public void saveFile() {
-		try {
-			textSerialReceived.append(labelValue+"번 클래스 저장중\n");
+    //양치 시간 계산하기 위한 메소드
+    public Runnable runnable = new Runnable() {
 
-			Log.e("saveFile()","파일을 생성하여 저장합니다.\n");
-			File dir = new File (foldername);
+        public void run() {
 
-			if(!dir.exists()){
-				dir.mkdir();
-			}
+            MillisecondTime = SystemClock.uptimeMillis() - StartTime;
 
-			fos = new FileOutputStream(foldername+"/"+filename, true);
-			fos2 = new FileOutputStream(foldername+"/"+filename2, true);
+            UpdateTime = TimeBuff + MillisecondTime;
 
-			fw = new BufferedWriter(new OutputStreamWriter(fos, "UTF-8"));
-			fw2 = new BufferedWriter(new OutputStreamWriter(fos2,"UTF-8"));
+            Seconds = (int) (UpdateTime / 1000);
 
-			int idx=0;
-			//globalIdx2+=idx;
-			for(int i=0;i<queueSave.size()-1;){
-				buf=String.valueOf(queueSave.poll());
-				if(buf.split(" ").length==6) {
+            Minutes = Seconds / 60;
 
-					fw.write(String.valueOf(idx++));
-					fw.write(" ");
+            Seconds = Seconds % 60;
 
-					//fw.write(String.valueOf(queueSave.poll()));       fw.write(" ");
-					//fw.write(String.valueOf(queueSave.poll()));        fw.write(" ");
-					//fw.write(String.valueOf(queueSave.poll()));          fw.write(" ");
-					//fw.write(String.valueOf(queueSave.poll()));        fw.write(" ");
-					//fw.write(String.valueOf(queueSave.poll()));        fw.write(" ");
-					fw.write(buf);
-					fw.write("\r\n");
+            MilliSeconds = (int) (UpdateTime % 1000);
 
-				}
-			}
-			Log.e("queueSave 남은 수",String.valueOf(queueSave.size()));
-			queueSave.clear();
-			Log.e("queueSave 남은 수",String.valueOf(queueSave.size()));
+            Minutes=Minutes%60;
 
-			fw2.write(labelValue);       fw2.write(" ");
-			fw2.write(String.valueOf(globalIdx));       fw2.write(" ");
-			globalIdx+=idx;
-			fw2.write(String.valueOf(globalIdx-1));       fw2.write("\r\n");
-			Log.e("saveFile()","저장완료");
-			textSerialReceived.append(labelValue+"번 클래스 저장완료\n");
+            timeCount.setText("" + Minutes + ":"+String.format("%02d", Seconds));
 
-			fw.close();
-			//fw.flush();
-			fw2.close();
-			//fw2.flush();
-		}catch (Exception e) {
-			e.printStackTrace() ;
-		}
-	}
-*/
+            handler.postDelayed(this, 0);
+        }
+
+    };
+
 }
