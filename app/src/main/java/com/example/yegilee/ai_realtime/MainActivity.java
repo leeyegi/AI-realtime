@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.Comparator;
 
 
-
 public class MainActivity  extends BlunoLibrary {
     //ui구성에 필요한 인스턴스
     private TextView textState;
@@ -48,12 +47,11 @@ public class MainActivity  extends BlunoLibrary {
 	private static List<Float> gy;
 	private static List<Float> gz;
 
+	//prediction 한 결과를 담는 인스턴스
 	private float[] results;
 	private float[] resultsTmp;
 
 	private TensorFlowClassifier classifier;
-
-	private String[] labels = {"1", "2", "3", "4", "5", "6","7","8", "9", "10", "11", "12", "13","14", "15","16"};
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -257,14 +255,17 @@ public class MainActivity  extends BlunoLibrary {
 			//float[] resultTmp={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 			//resultTmp=results;
 
+			//prabability가 낮은 순으로 소팅 수행
 			Arrays.sort(resultsTmp);
 
 			toothState.setText(" ");
 			for(int i=0;i<16;i++)
 			{
-				//toothState.append(String.valueOf(i+1 +" -> "+results[i])+" ");
-				toothState.append(String.format("%2d -> %.10f \n", i+1, results[i]));
-
+				if(i%2==0) {
+					//toothState.append(String.valueOf(i+1 +" -> "+results[i])+" ");
+					toothState.append(String.format("%2d -> %.10f \t", i + 1, results[i]));
+					toothState.append(String.format("%2d -> %.10f \n", i + 2, results[i+1]));
+				}
 				if(resultsTmp[15]==results[i]){
 					int rank=i+1;
 					Log.e("rank", String.valueOf(rank));
