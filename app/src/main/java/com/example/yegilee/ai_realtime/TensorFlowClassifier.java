@@ -12,7 +12,7 @@ public class TensorFlowClassifier {
     }
 
     private TensorFlowInferenceInterface inferenceInterface;
-    private static final String MODEL_FILE = "file:///android_asset/frozen_rnnraw_v2.pb";
+    private static final String MODEL_FILE = "file:///android_asset/optimized_rnnraw_40_e300.pb";
 //    private static final String MODEL_FILE = "file:///android_asset/frozen_har.pb";
     private static final String INPUT_NODE = "in_";
     private static final String HIDDEN_NODE = "hidden_";
