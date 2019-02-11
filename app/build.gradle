@@ -4,7 +4,7 @@ def nativeBuildSystem = 'none'
 android {
     compileSdkVersion 27
     defaultConfig {
-        applicationId "com.example.yegilee.ai_realtime"
+        applicationId "com.example.yegilee.ai_real_shape80"
         minSdkVersion 18
         targetSdkVersion 27
         versionCode 1
@@ -47,7 +47,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.4'
+        classpath 'com.android.tools.build:gradle:3.2.1'
     }
 }
 

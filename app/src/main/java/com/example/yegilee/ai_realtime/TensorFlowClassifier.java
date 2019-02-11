@@ -12,14 +12,14 @@ public class TensorFlowClassifier {
     }
 
     private TensorFlowInferenceInterface inferenceInterface;
-    private static final String MODEL_FILE = "file:///android_asset/optimized_rnnraw_40_e300.pb";
+    private static final String MODEL_FILE = "file:///android_asset/frozen0211_80_rnnraw.pb";
 //    private static final String MODEL_FILE = "file:///android_asset/frozen_har.pb";
     private static final String INPUT_NODE = "in_";
     private static final String HIDDEN_NODE = "hidden_";
 
     private static final String[] OUTPUT_NODES = {"out_"};
     private static final String OUTPUT_NODE = "out_";
-    private static final long[] INPUT_SIZE = {1,40,6};
+    private static final long[] INPUT_SIZE = {1,80,6};
     private static final long[] HIDDEN_SIZE = {1,512};
 
     private static final int OUTPUT_SIZE = 16;

@@ -44,7 +44,7 @@ public class MainActivity  extends BlunoLibrary {
 	boolean arr2save=false;
 
     //real-time에 필요한 인스턴스
-	private static final int N_SAMPLES = 40;
+	private static final int N_SAMPLES = 80;
 	private static List<Float> ax;
 	private static List<Float> ay;
 	private static List<Float> az;
